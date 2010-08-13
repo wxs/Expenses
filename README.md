@@ -8,7 +8,7 @@ Expenses is a tiny expense tracker written in Python. You use it thus:
 Features
 --------
 
-- Stores expenses in very simple CSV format
+- Stores expenses in a very simple CSV file
 - Keeps a full version history of expenses in case of user error
 - Supports basic reports and plotting of expenses
 
@@ -48,7 +48,8 @@ Is Expenses exactly the same as PEM?
 
 They're very similar.
 
-PEM is the [GNU Personal Expense Manager](http://www.gnu.org/software/pem/). I wrote this before I knew
-that PEM existed. HOWEVER, Expenses' plotting feature does not exist in PEM. Also I like the pure-python
-aspect of Expenses.
+PEM is the [GNU Personal Expense Manager](http://www.gnu.org/software/pem/). It also takes
+the minimalist approach and uses a CSV datastore. I wrote this before I knew
+that PEM existed, however Expenses has some upsides: its versioning and plotting features do not exist in PEM.
+Also I like the pure-python aspect of Expenses.
 
