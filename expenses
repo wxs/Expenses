@@ -43,13 +43,12 @@ def commitafter(msg):
     def deco(f):
         def _inner(*args, **kwargs):
             if f(*args, **kwargs):
-                print "Commiting change"
+                print "Committing change"
                 commands.commit(ui.ui(), repo, message=msg)
                 return True
             else:
                 print "Reverting change"
-                # The date=False is for a bug in mercurial.
-                commands.revert(ui.ui(), repo, all=True, date=False, no_backup=True)
+                commands.update(ui.ui(), repo, "tip", clean=True)
                 return False
         return _inner
     return deco
