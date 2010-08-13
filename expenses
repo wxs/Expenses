@@ -2,6 +2,7 @@
 from datetime import date
 import sys
 import os
+import subprocess
 from collections import defaultdict
 from mercurial import ui, hg, commands
 
@@ -85,6 +86,7 @@ def add(args):
         amt = float(args[0])
     except ValueError, e:
         print "Amount not recognized"
+        print_usage()
         return False
     msg = args[1]
     with open(EXPENSES_FILE, 'a') as f:
@@ -98,8 +100,14 @@ def fn_list(args):
     return True
 
 @cli('edit', 'edit')
+@commitafter("Manually edited file")
 def edit(args):
-    os.system("{0} {1}".format(EDITOR, EXPENSES_FILE))
+    rc = subprocess.call([EDITOR, EXPENSES_FILE])
+    if rc != 0:
+        print "Editing file failed"
+        return False
+    if parse_entries(open(EXPENSES_FILE)) is None:
+        return False
     return True
 
 @cli('summary', 'summary')
@@ -191,7 +199,6 @@ def main():
         print_usage()
         return 1
     if not fn(sys.argv[2:]):
-        print_usage()
         return 1
     return 0
 
