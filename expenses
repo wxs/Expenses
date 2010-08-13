@@ -35,6 +35,25 @@ def cli(cmd, usage):
         return f
     return deco
 
+def commitafter(msg):
+    """ Decorator for a function that modifies the expenses file. This
+    causes it to commit a change to the repository if the function returns
+    True, or to revert the change if it returns False """
+    def deco(f):
+        def _inner(*args, **kwargs):
+            if f(*args, **kwargs):
+                print "Commiting change"
+                commands.commit(ui.ui(), repo, message=msg)
+                return True
+            else:
+                print "Reverting change"
+                # The date=False is for a bug in mercurial.
+                commands.revert(ui.ui(), repo, all=True, date=False, no_backup=True)
+                return False
+        return _inner
+    return deco
+
+
 
 def print_usage():
     usage_strings = ["{0} {1}".format(sys.argv[0], usage) for k, usage in usages.iteritems()]
@@ -60,6 +79,7 @@ def parse_entries(f):
 #  Command-line-interface function definitions  #
 #################################################
 @cli('add', 'add AMOUNT COMMENT')
+@commitafter("Added expense")
 def add(args):
     try:
         amt = float(args[0])
