@@ -1,0 +1,92 @@
+#!/usr/bin/python
+from datetime import date
+import sys
+import os
+from collections import defaultdict
+
+EXPENSES_FILE="/Users/xavier/Documents/expenses.txt"
+EDITOR="mvim"
+
+def print_usage():
+    print "\n".join(["USAGE: {0} add AMOUNT COMMENT".format(sys.argv[0]),
+                    "       {0} list".format(sys.argv[0]),
+                    "       {0} plot".format(sys.argv[0])
+                    ])
+
+class Entry(object):
+    def __init__(self, s):
+        d, amt, msg = s.split(',')
+        self.date = date(*[int(n) for n in d.split("-")])
+        self.amount = float(amt)
+        self.message = msg
+        
+def parse_entries(f):
+    try:
+        return [Entry(line) for i, line in enumerate(f)]
+    except ValueError:
+        print "Invalid expenses file, line:{0}".format(i)
+        return None
+        
+def add(args):
+    try:
+        amt = float(args[0])
+    except ValueError, e:
+        print "Amount not recognized"
+        return False
+    msg = args[1]
+    with open(EXPENSES_FILE, 'a') as f:
+        f.write("{0}, {1:.2f}, {2}\n".format(date.today().isoformat(), amt, msg))
+    return True
+
+def fn_list(args):
+    for line in open(EXPENSES_FILE):
+        print line,
+    return True
+
+def edit(args):
+    os.system("{0} {1}".format(EDITOR, EXPENSES_FILE))
+    return True
+
+def plot(args):
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    dayLocator = mdates.DayLocator()
+    formatter = mdates.DateFormatter('%Y-%m-%d')
+    dates = defaultdict(float)
+    entries = parse_entries(open(EXPENSES_FILE))
+    if not entries:
+        return False
+
+    for entry in entries:
+        dates[entry.date] += entry.amount
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.bar([k for k in sorted(dates.keys())],
+        [dates[k] for k in sorted(dates.keys())],
+        color="#809860")
+    ax.xaxis.set_major_locator(dayLocator)
+    ax.xaxis.set_major_formatter(formatter)
+    fig.autofmt_xdate()
+    
+    plt.show()
+    return True
+    #plt.plot((date(*k.split("-")) for k in sorted(dates.keys())),
+
+def main():
+    if len(sys.argv) == 1:
+        print_usage()
+        return 1
+    fn = cmds.get(sys.argv[1])
+    if fn == None:
+        print_usage()
+        return 1
+    if not fn(sys.argv[2:]):
+        print_usage()
+        return 1
+    return 0
+
+cmds = {"add": add, "list": fn_list, "edit": edit, "plot": plot}
+
+if __name__ == "__main__":
+    sys.exit(main())
