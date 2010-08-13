@@ -26,7 +26,7 @@ How do I use Expenses?
 Expenses itself is contained in a single executable. Put that in your PATH somewhere.
 It does have the following dependencies:
 
-- Python 2.6+
+- Python 2.7+
 - Mercurial (This is used to keep your expenses versioned in case you screw them up)
 - Matplotlib (If you want to use the plot feature)
 

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 Copyright (c) 2010 Xavier Snelgrove
 
@@ -25,6 +25,7 @@ from datetime import date
 import sys
 import os
 import subprocess
+import argparse
 from collections import defaultdict
 from mercurial import ui, hg, commands
 
@@ -83,43 +84,62 @@ def print_usage():
     print "\n".join(["       {0}".format(s) for s in usage_strings[1:]])
 
 class Entry(object):
-    def __init__(self, s):
-        d, amt, msg = s.split(',')
-        self.date = date(*[int(n) for n in d.split("-")])
-        self.amount = float(amt)
-        self.message = msg
+    def __init__(self, entry_date=None, amount=None, message=None, string=None):
+        if entry_date and string:
+            raise ValueError("Cannot specify both a date and a string")
+        if not entry_date and string:
+            d, amt, msg = string.split(',')
+            self.date = date(*[int(n) for n in d.split("-")])
+            self.amount = float(amt)
+            self.message = msg
+        else:
+            self.date = entry_date
+            self.amount = amount
+            self.message = message
+    def __str__(self):
+        return "{0}, {1:.2f}, {2}".format(self.date.isoformat(), self.amount, self.message)
         
-def parse_entries(f):
+        
+def parse_entries(f, fromdate=None, todate=None):
     try:
-        return [Entry(line) for i, line in enumerate(f) if line.lstrip()[0] != "#"]
+        entries = [Entry(string=line) for i, line in enumerate(f) if line.lstrip()[0] != "#"]
+        if fromdate:
+            entries = [e for e in entries if e.date >= fromdate]
+        if todate:
+            entries = [e for e in entries if e.date <= todate]
+        return entries
     except ValueError:
         print "Invalid expenses file, line:{0}".format(i+1)
         print line
         return None
+
+def parse_date(s):
+    # Parses a date in ISO format to a datetime
+    try:
+        return date(*(int(n) for n in s.split('-')))
+    except ValueError:
+        raise ValueError("String {0} not a valid ISO date".format(s))
         
 #################################################
 #  Command-line-interface function definitions  #
 #################################################
 @cli('add', 'add AMOUNT COMMENT')
 @commitafter("Added expense")
-def add(args):
-    if len(args) != 2:
-        print "Incorrect number of arguments to 'add'"
-        print_usage()
-        return False
-    try:
-        amt = float(args[0])
-    except ValueError, e:
-        print "Amount not recognized"
-        print_usage()
-        return False
-    msg = args[1]
+def add(argv):
+    parser = argparse.ArgumentParser(prog="{0} plot".format(sys.argv[0]))
+    parser.add_argument('amount', type=float, help='The amount of the expense (e.g. 3.75)')
+    parser.add_argument('message', help="The message to associate with the expense. \
+You should likely use a list of tags for ease of processing later.")
+
+    args = parser.parse_args(argv)
+    entry = Entry(date.today(), args.amount, args.message)
     with open(EXPENSES_FILE, 'a') as f:
-        f.write("{0}, {1:.2f}, {2}\n".format(date.today().isoformat(), amt, msg))
+        f.write(str(entry))
+        f.write("\n")
     return True
 
 @cli('list', 'list')
-def fn_list(args):
+def fn_list(argv):
     for line in open(EXPENSES_FILE):
         print line,
     return True
@@ -136,15 +156,20 @@ def edit(args):
     return True
 
 @cli('summary', 'summary')
-def summary(args):
-    entries = parse_entries(open(EXPENSES_FILE))
+def summary(argv):
+    parser = argparse.ArgumentParser(prog="{0} plot".format(sys.argv[0]))
+    parser.add_argument('--fromdate', type=parse_date)
+    parser.add_argument('--todate', type=parse_date)
+    args = parser.parse_args(argv)
+
+    entries = parse_entries(open(EXPENSES_FILE), fromdate=args.fromdate, todate=args.todate)
     if entries is None:
         return False
     if len(entries) == 0:
         print "No data to summarize!"
         return True
-    from_date = min(entry.date for entry in entries)
-    to_date = max(entry.date for entry in entries)
+    from_date = args.fromdate if args.fromdate else min(entry.date for entry in entries)
+    to_date = args.todate if args.todate else max(entry.date for entry in entries)
     total_spent = sum(entry.amount for entry in entries)
     average_all = total_spent/((to_date-from_date).days + 1)
     spentdays = set(entry.date for entry in entries)
@@ -158,13 +183,19 @@ def summary(args):
     
 
 @cli('plot', 'plot')
-def plot(args):
+def plot(argv):
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
+    
+    parser = argparse.ArgumentParser(prog="{0} plot".format(sys.argv[0]))
+    parser.add_argument('--fromdate', type=parse_date)
+    parser.add_argument('--todate', type=parse_date)
+    args = parser.parse_args(argv)
+
     dayLocator = mdates.DayLocator()
     formatter = mdates.DateFormatter('%Y-%m-%d')
     dates = defaultdict(float)
-    entries = parse_entries(open(EXPENSES_FILE))
+    entries = parse_entries(open(EXPENSES_FILE), fromdate=args.fromdate, todate=args.todate)
     if entries is None:
         return False
     if len(entries) == 0:
