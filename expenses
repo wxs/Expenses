@@ -3,14 +3,25 @@ from datetime import date
 import sys
 import os
 from collections import defaultdict
+from mercurial import ui, hg, commands
 
-EXPENSES_FILE="/Users/xavier/Documents/expenses.txt"
-EDITOR="mvim"
+VERSION="0.1"
+
+HOME = os.getenv("HOME")
+EXPENSES_DIR = os.path.join(HOME, ".expenses")
+REPO_DIR = os.path.join(EXPENSES_DIR, 'repo')
+EXPENSES_FILE=os.path.join(REPO_DIR, "expenses.csv")
+
+EDITOR=os.getenv("EDITOR")
+if not EDITOR:
+    EDITOR = "vim"
+
 
 def print_usage():
     print "\n".join(["USAGE: {0} add AMOUNT COMMENT".format(sys.argv[0]),
                     "       {0} list".format(sys.argv[0]),
-                    "       {0} plot".format(sys.argv[0])
+                    "       {0} plot".format(sys.argv[0]),
+                    "       {0} summary".format(sys.argv[0])
                     ])
 
 class Entry(object):
@@ -24,7 +35,8 @@ def parse_entries(f):
     try:
         return [Entry(line) for i, line in enumerate(f)]
     except ValueError:
-        print "Invalid expenses file, line:{0}".format(i)
+        print "Invalid expenses file, line:{0}".format(i+1)
+        print line
         return None
         
 def add(args):
@@ -46,6 +58,24 @@ def fn_list(args):
 def edit(args):
     os.system("{0} {1}".format(EDITOR, EXPENSES_FILE))
     return True
+
+def summary(args):
+    entries = parse_entries(open(EXPENSES_FILE))
+    if not entries:
+        return False
+    from_date = min(entry.date for entry in entries)
+    to_date = max(entry.date for entry in entries)
+    total_spent = sum(entry.amount for entry in entries)
+    average_all = total_spent/((to_date-from_date).days + 1)
+    spentdays = set(entry.date for entry in entries)
+    # Average over days where some money was spent
+    average_some = total_spent/len(spentdays)
+    print "Report from {0} to {1}".format(from_date, to_date)
+    print "Total spent: ${0:.2f}".format(total_spent)
+    print "Average per day: ${0:.2f} (*30 = ${1:.2f})".format(average_all, average_all*30)
+    print "Average per day on days with non-zero spending: ${0:.2f} (*30 = ${1:.2f})".format(average_some, average_some*30)
+    return True
+    
 
 def plot(args):
     import matplotlib.pyplot as plt
@@ -73,7 +103,35 @@ def plot(args):
     return True
     #plt.plot((date(*k.split("-")) for k in sorted(dates.keys())),
 
+######################################################################
+# Initialization stuff                                               #
+######################################################################
+def init_dir():
+    """Initialize the .expenses directory, and the mercurial repository"""
+    try:
+        os.mkdir(EXPENSES_DIR)
+        os.mkdir(REPO_DIR)
+    except OSError, e:
+        print e
+        return False
+    with open(EXPENSES_FILE, 'w') as f:
+        f.write("# Version: {0}\n".format(VERSION))
+    repo = hg.repository(ui.ui(), REPO_DIR, create=True)
+    commands.commit(ui.ui(), repo, EXPENSES_FILE, message="Initialized new expenses file", addremove=True)
+    return True
+
+def load_repo():
+    """ Load the mercurial repository into the global repo variable """
+    global repo
+    repo = hg.repository(ui.ui(), REPO_DIR)
+
 def main():
+    # If the .expenses folder does not exist, create it.
+    if not os.path.isdir(EXPENSES_DIR):
+        if not init_dir(): return 1
+
+    load_repo()
+
     if len(sys.argv) == 1:
         print_usage()
         return 1
@@ -86,7 +144,7 @@ def main():
         return 1
     return 0
 
-cmds = {"add": add, "list": fn_list, "edit": edit, "plot": plot}
+cmds = {"add": add, "list": fn_list, "edit": edit, "plot": plot, "summary": summary}
 
 if __name__ == "__main__":
     sys.exit(main())
