@@ -16,13 +16,30 @@ EDITOR=os.getenv("EDITOR")
 if not EDITOR:
     EDITOR = "vim"
 
+cmds = {}
+usages = {}
+
+def cli(cmd, usage):
+    """ Decorator for exposing a function to the command-line-interface.
+    >>> @cli('add', 'add AMOUNT COMMENT')
+    ... def add_fn(args):
+    ...    pass
+    >>> 'add' in cmds
+    True
+    >>> 'add' in usages:
+    True
+    """
+    def deco(f):
+        cmds[cmd] = f
+        usages[cmd] = usage
+        return f
+    return deco
+
 
 def print_usage():
-    print "\n".join(["USAGE: {0} add AMOUNT COMMENT".format(sys.argv[0]),
-                    "       {0} list".format(sys.argv[0]),
-                    "       {0} plot".format(sys.argv[0]),
-                    "       {0} summary".format(sys.argv[0])
-                    ])
+    usage_strings = ["{0} {1}".format(sys.argv[0], usage) for k, usage in usages.iteritems()]
+    print "USAGE: {0}".format(usage_strings[0])
+    print "\n".join(["       {0}".format(s) for s in usage_strings[1:]])
 
 class Entry(object):
     def __init__(self, s):
@@ -33,12 +50,16 @@ class Entry(object):
         
 def parse_entries(f):
     try:
-        return [Entry(line) for i, line in enumerate(f)]
+        return [Entry(line) for i, line in enumerate(f) if line.lstrip()[0] != "#"]
     except ValueError:
         print "Invalid expenses file, line:{0}".format(i+1)
         print line
         return None
         
+#################################################
+#  Command-line-interface function definitions  #
+#################################################
+@cli('add', 'add AMOUNT COMMENT')
 def add(args):
     try:
         amt = float(args[0])
@@ -50,19 +71,25 @@ def add(args):
         f.write("{0}, {1:.2f}, {2}\n".format(date.today().isoformat(), amt, msg))
     return True
 
+@cli('list', 'list')
 def fn_list(args):
     for line in open(EXPENSES_FILE):
         print line,
     return True
 
+@cli('edit', 'edit')
 def edit(args):
     os.system("{0} {1}".format(EDITOR, EXPENSES_FILE))
     return True
 
+@cli('summary', 'summary')
 def summary(args):
     entries = parse_entries(open(EXPENSES_FILE))
-    if not entries:
+    if entries is None:
         return False
+    if len(entries) == 0:
+        print "No data to summarize!"
+        return True
     from_date = min(entry.date for entry in entries)
     to_date = max(entry.date for entry in entries)
     total_spent = sum(entry.amount for entry in entries)
@@ -77,6 +104,7 @@ def summary(args):
     return True
     
 
+@cli('plot', 'plot')
 def plot(args):
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
@@ -84,8 +112,11 @@ def plot(args):
     formatter = mdates.DateFormatter('%Y-%m-%d')
     dates = defaultdict(float)
     entries = parse_entries(open(EXPENSES_FILE))
-    if not entries:
+    if entries is None:
         return False
+    if len(entries) == 0:
+        print "No entries to plot!"
+        return True
 
     for entry in entries:
         dates[entry.date] += entry.amount
@@ -144,7 +175,6 @@ def main():
         return 1
     return 0
 
-cmds = {"add": add, "list": fn_list, "edit": edit, "plot": plot, "summary": summary}
 
 if __name__ == "__main__":
     sys.exit(main())
