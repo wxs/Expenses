@@ -21,7 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 """
-from datetime import date
+from datetime import date, timedelta
 import sys
 import os
 import subprocess
@@ -114,6 +114,8 @@ def parse_entries(f, fromdate=None, todate=None):
         return None
 
 def parse_date(s):
+    if s.lower() == "yesterday":
+        return date.today()-timedelta(1)
     # Parses a date in ISO format to a datetime
     try:
         return date(*(int(n) for n in s.split('-')))
@@ -130,9 +132,13 @@ def add(argv):
     parser.add_argument('amount', type=float, help='The amount of the expense (e.g. 3.75)')
     parser.add_argument('message', help="The message to associate with the expense. \
 You should likely use a list of tags for ease of processing later.")
+    parser.add_argument('--date', type=parse_date, help="The date on which the expense occured (YYYY-MM-DD)")
 
     args = parser.parse_args(argv)
-    entry = Entry(date.today(), args.amount, args.message)
+    if args.date:
+        entry = Entry(args.date, args.amount, args.message)
+    else:
+        entry = Entry(date.today(), args.amount, args.message)
     with open(EXPENSES_FILE, 'a') as f:
         f.write(str(entry))
         f.write("\n")
