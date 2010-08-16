@@ -3,6 +3,7 @@ Expenses
 
 Expenses is a tiny expense tracker written in Python. You use it thus:
     expenses add 3.10 "Cappuccino at Dark Horse"
+    expenses summary
     expenses plot
 
 Features
@@ -41,7 +42,13 @@ you ensure that it stays properly versioned.
 Does Expenses work on Windows?
 ------------------------
 
-No.
+Maybe.
+
+Using [Cygwin](http://www.cygwin.com/) it should probably work. I'm not really
+sure, as I don't have a Windows machine to try it on. The only real obstacle to
+Windows at the moment is the location to use for the Expenses data folder: on
+UNIX systems I use $HOME/.expenses. If anyone wants to make it pick a
+reasonable spot on Windows I will happily accept your patch.
 
 Is Expenses exactly the same as PEM?
 -----------------------------
