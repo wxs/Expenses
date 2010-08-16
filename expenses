@@ -91,14 +91,14 @@ class Entry(object):
             d, amt, msg = string.split(',')
             self.date = date(*[int(n) for n in d.split("-")])
             self.amount = float(amt)
-            self.message = msg
+            self.message = msg.strip()
         else:
             self.date = entry_date
             self.amount = amount
             self.message = message
+
     def __str__(self):
         return "{0}, {1:.2f}, {2}".format(self.date.isoformat(), self.amount, self.message)
-        
         
 def parse_entries(f, fromdate=None, todate=None):
     try:
@@ -146,8 +146,13 @@ You should likely use a list of tags for ease of processing later.")
 
 @cli('list', 'list')
 def fn_list(argv):
-    for line in open(EXPENSES_FILE):
-        print line,
+    parser = argparse.ArgumentParser(prog="{0} plot".format(sys.argv[0]))
+    parser.add_argument('--fromdate', type=parse_date)
+    parser.add_argument('--todate', type=parse_date)
+    args = parser.parse_args(argv)
+    entries = parse_entries(open(EXPENSES_FILE), fromdate=args.fromdate, todate=args.todate)
+    for entry in sorted(entries, key=str):
+        print entry
     return True
 
 @cli('edit', 'edit')
