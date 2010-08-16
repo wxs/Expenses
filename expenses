@@ -179,17 +179,28 @@ def summary(argv):
     if len(entries) == 0:
         print "No data to summarize!"
         return True
+
     from_date = args.fromdate if args.fromdate else min(entry.date for entry in entries)
     to_date = args.todate if args.todate else max(entry.date for entry in entries)
+
     total_spent = sum(entry.amount for entry in entries)
-    average_all = total_spent/((to_date-from_date).days + 1)
+    mean_all = total_spent/((to_date-from_date).days + 1)
     spentdays = set(entry.date for entry in entries)
     # Average over days where some money was spent
-    average_some = total_spent/len(spentdays)
+    mean_some = total_spent/len(spentdays)
+
+    days = [sum(entry.amount for entry in entries if entry.date == from_date+timedelta(d))
+            for d in range((to_date-from_date).days+1)]
+    days.sort()
+    if len(days)%2 == 0:
+        median = (days[len(days)//2-1]+days[len(days)//2])/2
+    else:
+        median = days[len(days)//2]
     print "Report from {0} to {1}".format(from_date, to_date)
     print "Total spent: ${0:.2f}".format(total_spent)
-    print "Average per day: ${0:.2f} (*30 = ${1:.2f})".format(average_all, average_all*30)
-    print "Average per day on days with non-zero spending: ${0:.2f} (*30 = ${1:.2f})".format(average_some, average_some*30)
+    print "Mean per day: ${0:.2f} (*30 = ${1:.2f})".format(mean_all, mean_all*30)
+    print "Median per day: ${0:.2f}".format(median)
+    print "Mean per day on days with non-zero spending: ${0:.2f} (*30 = ${1:.2f})".format(mean_some, mean_some*30)
     return True
     
 
