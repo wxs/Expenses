@@ -114,6 +114,8 @@ def parse_entries(f, fromdate=None, todate=None):
         return None
 
 def parse_date(s):
+    if s.lower() == "today":
+        return date.today()
     if s.lower() == "yesterday":
         return date.today()-timedelta(1)
     # Parses a date in ISO format to a datetime
