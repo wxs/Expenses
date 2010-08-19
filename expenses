@@ -43,6 +43,13 @@ EDITOR=os.getenv("EDITOR")
 if not EDITOR:
     EDITOR = "vim"
 
+colours = [
+        "#89C7A9",
+        "#E4CF2E",
+        "#574F17",
+        "#639255"
+]
+
 cmds = {}
 usages = {}
 
@@ -101,9 +108,11 @@ class Entry(object):
 
     def cats(self, all_cats):
         """ What categories does this Entry fall under?"""
-        r = [cat for cat,words in all_cats if any(word.lower() in words for word in self.message.split(' '))]
+        r = [cat for cat,words in all_cats if any(word.lower() in self.message.lower() for word in words)]
         if len(r)>1:
             print "Entry \"{0}\" on date {1} falls under the following categories: {2}".format(self.message, self.date, r)
+        if len(r) == 0:
+            print "No cats for {0}".format(self.message)
         return r
 
     def __str__(self):
@@ -268,10 +277,15 @@ def plot(argv):
 
     prevheights=[0]*len(dates)
     bars = {}
-    for k,v in cat_entries.items():
+    sorted_cats = sorted(cat_entries.items(), key=lambda x:sum(e.amount for e in x[1]), reverse=True)
+    for i, c in enumerate(sorted_cats):
+        k,v = c
         heights = [sum(e.amount for e in v if e.date == date) for date in dates]
-        bars[k] = ax.bar(dates, heights, bottom=prevheights, color=(random(), random(), random()))
+        bars[k] = ax.bar(dates, heights, bottom=prevheights,
+                color=colours[i] if i < len(colours) else (random(), random(), random()),
+                linewidth=0)
         prevheights = [sum(e) for e in zip(heights, prevheights)]
+    sorted_bars = sorted(bars.items(), key=lambda x:sum(e.amount for e in cat_entries[x[0]]))
     
     ax.legend(*zip(*[(bar[0], cat) for cat, bar in bars.items()]))
 
