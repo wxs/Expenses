@@ -26,8 +26,10 @@ import sys
 import os
 import subprocess
 import argparse
+import json
 from collections import defaultdict
 from mercurial import ui, hg, commands
+from random import random
 
 VERSION="0.1"
 
@@ -35,6 +37,7 @@ HOME = os.getenv("HOME")
 EXPENSES_DIR = os.path.join(HOME, ".expenses")
 REPO_DIR = os.path.join(EXPENSES_DIR, 'repo')
 EXPENSES_FILE=os.path.join(REPO_DIR, "expenses.csv")
+CAT_FILE = os.path.join(EXPENSES_DIR, 'cats.json')
 
 EDITOR=os.getenv("EDITOR")
 if not EDITOR:
@@ -77,7 +80,6 @@ def commitafter(msg):
     return deco
 
 
-
 def print_usage():
     usage_strings = ["{0} {1}".format(sys.argv[0], usage) for k, usage in usages.iteritems()]
     print "USAGE: {0}".format(usage_strings[0])
@@ -97,6 +99,13 @@ class Entry(object):
             self.amount = amount
             self.message = message
 
+    def cats(self, all_cats):
+        """ What categories does this Entry fall under?"""
+        r = [cat for cat,words in all_cats if any(word.lower() in words for word in self.message.split(' '))]
+        if len(r)>1:
+            print "Entry \"{0}\" on date {1} falls under the following categories: {2}".format(self.message, self.date, r)
+        return r
+
     def __str__(self):
         return "{0}, {1:.2f}, {2}".format(self.date.isoformat(), self.amount, self.message)
         
@@ -112,6 +121,9 @@ def parse_entries(f, fromdate=None, todate=None):
         print "Invalid expenses file, line:{0}".format(i+1)
         print line
         return None
+
+def parse_cats(f):
+    return json.load(f)
 
 def parse_date(s):
     if s.lower() == "today":
@@ -147,7 +159,7 @@ You should likely use a list of tags for ease of processing later.")
     return True
 
 @cli('list', 'list')
-def fn_list(argv):
+def cli_list(argv):
     parser = argparse.ArgumentParser(prog="{0} plot".format(sys.argv[0]))
     parser.add_argument('--fromdate', type=parse_date)
     parser.add_argument('--todate', type=parse_date)
@@ -167,6 +179,15 @@ def edit(args):
     if parse_entries(open(EXPENSES_FILE)) is None:
         return False
     return True
+
+@cli('cats', 'cats')
+def cli_cats(args):
+    rc = subprocess.call([EDITOR, CAT_FILE])
+    if rc != 0:
+        print "Editing cat file failed"
+        return False
+    else:
+        return True
 
 @cli('summary', 'summary')
 def summary(argv):
@@ -220,22 +241,43 @@ def plot(argv):
     formatter = mdates.DateFormatter('%Y-%m-%d')
     dates = defaultdict(float)
     entries = parse_entries(open(EXPENSES_FILE), fromdate=args.fromdate, todate=args.todate)
+    fromdate = args.from_date if args.fromdate is not None else min(e.date for e in entries)
+    todate = args.to_date if args.todate is not None else max(e.date for e in entries)
+        
     if entries is None:
         return False
     if len(entries) == 0:
         print "No entries to plot!"
         return True
 
+    all_cats=parse_cats(open(CAT_FILE))
+    cat_entries = defaultdict(list)
     for entry in entries:
+        cats = entry.cats(all_cats)
+        if len(cats)==0:
+            cat_entries["other"].append(entry)
+        else:
+            cat_entries[cats[0]].append(entry)
         dates[entry.date] += entry.amount
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.bar([k for k in sorted(dates.keys())],
-        [dates[k] for k in sorted(dates.keys())],
-        color="#809860")
     ax.xaxis.set_major_locator(dayLocator)
     ax.xaxis.set_major_formatter(formatter)
+    dates = list(sorted(fromdate+timedelta(i) for i in range((todate-fromdate).days+1)))
+
+    prevheights=[0]*len(dates)
+    bars = {}
+    for k,v in cat_entries.items():
+        heights = [sum(e.amount for e in v if e.date == date) for date in dates]
+        bars[k] = ax.bar(dates, heights, bottom=prevheights, color=(random(), random(), random()))
+        prevheights = [sum(e) for e in zip(heights, prevheights)]
+    
+    ax.legend(*zip(*[(bar[0], cat) for cat, bar in bars.items()]))
+
+    #ax.bar([k for k in sorted(dates.keys())],
+        #[dates[k] for k in sorted(dates.keys())],
+        #color="#809860")
     fig.autofmt_xdate()
     
     plt.show()
