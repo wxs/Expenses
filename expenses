@@ -244,6 +244,10 @@ def plot(argv):
     parser = argparse.ArgumentParser(prog="{0} plot".format(sys.argv[0]))
     parser.add_argument('--fromdate', type=parse_date)
     parser.add_argument('--todate', type=parse_date)
+    parser.add_argument('--max',
+        help="The y-axis of the plot is amount spent, this scales the graph to only show up to AMOUNT.",
+        metavar="AMOUNT", type=float)
+
     args = parser.parse_args(argv)
 
     dayLocator = mdates.DayLocator()
@@ -271,6 +275,9 @@ def plot(argv):
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
+    if args.max:
+        ax.set_ylim(0,args.max)
+
     ax.xaxis.set_major_locator(dayLocator)
     ax.xaxis.set_major_formatter(formatter)
     dates = list(sorted(fromdate+timedelta(i) for i in range((todate-fromdate).days+1)))
@@ -287,7 +294,7 @@ def plot(argv):
         prevheights = [sum(e) for e in zip(heights, prevheights)]
     sorted_bars = sorted(bars.items(), key=lambda x:sum(e.amount for e in cat_entries[x[0]]))
     
-    ax.legend(*zip(*[(bar[0], cat) for cat, bar in bars.items()]))
+    fig.legend(*zip(*[(bar[0], cat) for cat, bar in bars.items()]))
 
     #ax.bar([k for k in sorted(dates.keys())],
         #[dates[k] for k in sorted(dates.keys())],
