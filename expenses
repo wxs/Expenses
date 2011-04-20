@@ -27,7 +27,7 @@ import os
 import subprocess
 import argparse
 from collections import defaultdict
-from mercurial import ui, hg, commands
+from mercurial import ui, hg, commands, error
 
 VERSION="0.1"
 
@@ -67,7 +67,10 @@ def commitafter(msg):
         def _inner(*args, **kwargs):
             if f(*args, **kwargs):
                 print "Committing change"
-                commands.commit(ui.ui(), repo, message=msg)
+                try:
+                    commands.commit(ui.ui(), repo, message=msg)
+                except error.Abort as (e):
+                    print "Warning mercurial returned the following error: \"%s\"" % e
                 return True
             else:
                 print "Reverting change"
@@ -256,7 +259,11 @@ def init_dir():
     with open(EXPENSES_FILE, 'w') as f:
         f.write("# Version: {0}\n".format(VERSION))
     repo = hg.repository(ui.ui(), REPO_DIR, create=True)
-    commands.commit(ui.ui(), repo, EXPENSES_FILE, message="Initialized new expenses file", addremove=True)
+    try:
+        commands.commit(ui.ui(), repo, EXPENSES_FILE, message="Initialized new expenses file", addremove=True)
+    except error.Abort as (e):
+        print "Warning mercurial returned the following error: \"%s\"" % e
+
     return True
 
 def load_repo():
