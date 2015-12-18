@@ -2,9 +2,12 @@ Expenses
 ========
 
 Expenses is a tiny expense tracker written in Python. You use it thus:
+
+```
     expenses add 3.10 "Cappuccino at Dark Horse"
     expenses summary
     expenses plot
+```
 
 Features
 --------
